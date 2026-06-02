@@ -1,16 +1,46 @@
 import { useState, useEffect, useCallback } from 'react'
-import { format, subDays, isToday, parseISO } from 'date-fns'
+import { format, subDays } from 'date-fns'
 
-const STORAGE_KEY = 'habits_data_v2'
+const STORAGE_KEY = 'habits_data_v4'
 
-const DEFAULT_HABITS = [
-  { id: '1', name: 'Morning run', emoji: '🏃', color: '#a3e635', createdAt: format(new Date(), 'yyyy-MM-dd') },
-  { id: '2', name: 'Read 30 min', emoji: '📚', color: '#38bdf8', createdAt: format(new Date(), 'yyyy-MM-dd') },
-  { id: '3', name: 'Meditate', emoji: '🧘', color: '#f472b6', createdAt: format(new Date(), 'yyyy-MM-dd') },
-]
-
-function generateId() {
-  return Math.random().toString(36).substr(2, 9)
+const DEFAULT_DATA = {
+  categories: [
+    {
+      id: 'sports', name: 'SPORTS', collapsed: false,
+      habits: [
+        { id: 'running', name: 'Running', emoji: '🏃', color: '#ef4444' },
+        { id: 'calisthenics', name: 'Calisthenics / Muscu / Climbing', emoji: '💪', color: '#f97316' },
+        { id: 'stretching', name: 'Stretching / gainage', emoji: '🧘', color: '#eab308' },
+      ]
+    },
+    {
+      id: 'mind', name: 'MIND', collapsed: false,
+      habits: [
+        { id: 'read', name: 'Read', emoji: '📚', color: '#3b82f6' },
+      ]
+    },
+    {
+      id: 'health', name: 'HEALTH', collapsed: false,
+      habits: [
+        { id: 'water', name: 'Drink water', emoji: '💧', color: '#06b6d4' },
+        { id: 'macro', name: 'Macro check', emoji: '🥗', color: '#a855f7' },
+        { id: 'skincare', name: 'Skincare Soir', emoji: '✨', color: '#ec4899' },
+        { id: 'brld', name: 'BRLD', emoji: '🌿', color: '#8b5cf6' },
+        { id: 'fina', name: 'Fina', emoji: '💊', color: '#a855f7' },
+      ]
+    },
+    {
+      id: 'skills', name: 'SKILLS', collapsed: false,
+      habits: [
+        { id: 'es', name: 'ES', emoji: '📖', color: '#10b981' },
+        { id: 'film', name: 'FILM / PHOTO', emoji: '🎬', color: '#f59e0b' },
+        { id: 'journaling', name: 'Journaling', emoji: '✍️', color: '#6366f1' },
+        { id: 'video', name: 'Video Creative / Photo shop / After...', emoji: '🎨', color: '#84cc16' },
+        { id: 'flstudio', name: 'FL STUDIO', emoji: '🎵', color: '#14b8a6' },
+      ]
+    },
+  ],
+  completions: {}
 }
 
 function load() {
@@ -18,37 +48,35 @@ function load() {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     return JSON.parse(raw)
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 function save(data) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  } catch {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)) } catch {}
+}
+
+function genId() {
+  return Math.random().toString(36).substr(2, 9)
 }
 
 export function useHabits() {
-  const [habits, setHabits] = useState([])
-  const [completions, setCompletions] = useState({}) // { 'habitId-YYYY-MM-DD': true }
+  const [categories, setCategories] = useState([])
+  const [completions, setCompletions] = useState({})
 
   useEffect(() => {
     const stored = load()
     if (stored) {
-      setHabits(stored.habits || DEFAULT_HABITS)
+      setCategories(stored.categories || DEFAULT_DATA.categories)
       setCompletions(stored.completions || {})
     } else {
-      setHabits(DEFAULT_HABITS)
+      setCategories(DEFAULT_DATA.categories)
       setCompletions({})
     }
   }, [])
 
   useEffect(() => {
-    if (habits.length > 0) {
-      save({ habits, completions })
-    }
-  }, [habits, completions])
+    if (categories.length > 0) save({ categories, completions })
+  }, [categories, completions])
 
   const toggleCompletion = useCallback((habitId, date) => {
     const key = `${habitId}-${date}`
@@ -64,77 +92,114 @@ export function useHabits() {
     return !!completions[`${habitId}-${date}`]
   }, [completions])
 
-  const addHabit = useCallback((name, emoji, color) => {
-    const newHabit = {
-      id: generateId(),
-      name,
-      emoji,
-      color,
-      createdAt: format(new Date(), 'yyyy-MM-dd')
-    }
-    setHabits(prev => [...prev, newHabit])
+  const toggleCategory = useCallback((catId) => {
+    setCategories(prev => prev.map(c => c.id === catId ? { ...c, collapsed: !c.collapsed } : c))
+  }, [])
+
+  const addCategory = useCallback((name) => {
+    const newCat = { id: genId(), name: name.toUpperCase(), collapsed: false, habits: [] }
+    setCategories(prev => [...prev, newCat])
+    return newCat.id
+  }, [])
+
+  const addHabit = useCallback((catId, name, emoji = '⭐', color = '#84cc16') => {
+    const newHabit = { id: genId(), name, emoji, color }
+    setCategories(prev => prev.map(c =>
+      c.id === catId ? { ...c, habits: [...c.habits, newHabit] } : c
+    ))
     return newHabit.id
   }, [])
 
-  const deleteHabit = useCallback((id) => {
-    setHabits(prev => prev.filter(h => h.id !== id))
+  const updateHabitColor = useCallback((catId, habitId, color) => {
+    setCategories(prev => prev.map(c =>
+      c.id === catId
+        ? { ...c, habits: c.habits.map(h => h.id === habitId ? { ...h, color } : h) }
+        : c
+    ))
+  }, [])
+
+  const deleteHabit = useCallback((catId, habitId) => {
+    setCategories(prev => prev.map(c =>
+      c.id === catId ? { ...c, habits: c.habits.filter(h => h.id !== habitId) } : c
+    ))
     setCompletions(prev => {
       const next = { ...prev }
-      Object.keys(next).forEach(k => {
-        if (k.startsWith(`${id}-`)) delete next[k]
-      })
+      Object.keys(next).forEach(k => { if (k.startsWith(`${habitId}-`)) delete next[k] })
       return next
     })
   }, [])
 
-  const updateHabit = useCallback((id, updates) => {
-    setHabits(prev => prev.map(h => h.id === id ? { ...h, ...updates } : h))
+  const deleteCategory = useCallback((catId) => {
+    setCategories(prev => {
+      const cat = prev.find(c => c.id === catId)
+      if (cat) {
+        setCompletions(prev2 => {
+          const next = { ...prev2 }
+          cat.habits.forEach(h => {
+            Object.keys(next).forEach(k => { if (k.startsWith(`${h.id}-`)) delete next[k] })
+          })
+          return next
+        })
+      }
+      return prev.filter(c => c.id !== catId)
+    })
   }, [])
 
-  // Get streak for a habit
-  const getStreak = useCallback((habitId) => {
+  // Returns streak length AT a specific date (consecutive days ending on that date)
+  const getStreakAt = useCallback((habitId, dateStr) => {
     let streak = 0
-    let d = new Date()
-    // if today not done, start from yesterday
-    const todayKey = `${habitId}-${format(d, 'yyyy-MM-dd')}`
-    if (!completions[todayKey]) {
-      d = subDays(d, 1)
-    }
+    let d = new Date(dateStr + 'T12:00:00')
     while (true) {
       const key = `${habitId}-${format(d, 'yyyy-MM-dd')}`
-      if (completions[key]) {
-        streak++
-        d = subDays(d, 1)
-      } else break
+      if (completions[key]) { streak++; d = subDays(d, 1) } else break
     }
     return streak
   }, [completions])
 
-  // Get last N days completion data for a habit (for heatmap)
-  const getCompletionHistory = useCallback((habitId, days = 91) => {
-    const result = []
-    for (let i = days - 1; i >= 0; i--) {
-      const date = format(subDays(new Date(), i), 'yyyy-MM-dd')
-      result.push({ date, done: !!completions[`${habitId}-${date}`] })
+  const getStreak = useCallback((habitId) => {
+    let streak = 0
+    let d = new Date()
+    const todayKey = `${habitId}-${format(d, 'yyyy-MM-dd')}`
+    if (!completions[todayKey]) d = subDays(d, 1)
+    while (true) {
+      const key = `${habitId}-${format(d, 'yyyy-MM-dd')}`
+      if (completions[key]) { streak++; d = subDays(d, 1) } else break
     }
-    return result
+    return streak
   }, [completions])
 
-  // Today's completion count
-  const todayDate = format(new Date(), 'yyyy-MM-dd')
-  const todayCount = habits.filter(h => completions[`${h.id}-${todayDate}`]).length
+  const getLongestStreak = useCallback((habitId) => {
+    let longest = 0, current = 0
+    for (let i = 364; i >= 0; i--) {
+      const key = `${habitId}-${format(subDays(new Date(), i), 'yyyy-MM-dd')}`
+      if (completions[key]) { current++; longest = Math.max(longest, current) } else current = 0
+    }
+    return longest
+  }, [completions])
+
+  const getTotalCount = useCallback((habitId) => {
+    return Object.keys(completions).filter(k => k.startsWith(`${habitId}-`)).length
+  }, [completions])
+
+  // Was the previous day done? (for broken streak visual)
+  const wasPrevDayDone = useCallback((habitId, dateStr) => {
+    const prev = format(subDays(new Date(dateStr + 'T12:00:00'), 1), 'yyyy-MM-dd')
+    return !!completions[`${habitId}-${prev}`]
+  }, [completions])
+
+  // Is the next day done?
+  const isNextDayDone = useCallback((habitId, dateStr) => {
+    const next = format(new Date(new Date(dateStr + 'T12:00:00').getTime() + 86400000), 'yyyy-MM-dd')
+    return !!completions[`${habitId}-${next}`]
+  }, [completions])
 
   return {
-    habits,
-    completions,
-    toggleCompletion,
-    isCompleted,
-    addHabit,
-    deleteHabit,
-    updateHabit,
-    getStreak,
-    getCompletionHistory,
-    todayDate,
-    todayCount,
+    categories, completions,
+    toggleCompletion, isCompleted,
+    toggleCategory, addCategory, addHabit, deleteHabit, deleteCategory,
+    updateHabitColor,
+    getStreak, getLongestStreak, getTotalCount,
+    getStreakAt, wasPrevDayDone, isNextDayDone,
+    todayDate: format(new Date(), 'yyyy-MM-dd'),
   }
 }
