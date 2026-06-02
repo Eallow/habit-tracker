@@ -35,6 +35,23 @@ function streakColor(baseColor, streakLen) {
   return `rgba(${r},${g},${b},${opacity})`
 }
 
+// ---- Long press (mobile) ----
+let _lpTimer = null
+let _lpX = 0
+let _lpY = 0
+function _lpStart(cb) {
+  return (e) => {
+    const t = e.changedTouches[0]
+    _lpX = t.clientX; _lpY = t.clientY
+    _lpTimer = setTimeout(() => cb({ clientX: _lpX, clientY: _lpY, preventDefault: () => {} }), 600)
+  }
+}
+function _lpEnd() { clearTimeout(_lpTimer) }
+function _lpMove(e) {
+  const t = e.changedTouches[0]
+  if (Math.abs(t.clientX - _lpX) > 8 || Math.abs(t.clientY - _lpY) > 8) clearTimeout(_lpTimer)
+}
+
 // ---- Completion Cell ----
 function CompletionCell({ habitId, dateStr, habit, done, skipped, isToday, streakLen, prevDone, onToggle, onSkip }) {
   const bg = done ? streakColor(habit.color, streakLen) : null
@@ -45,6 +62,9 @@ function CompletionCell({ habitId, dateStr, habit, done, skipped, isToday, strea
       className={`completion-cell ${done ? 'done' : ''} ${skipped ? 'skipped' : ''} ${isToday ? 'today-col' : ''} ${brokenAfter ? 'broken' : ''}`}
       onClick={() => onToggle(habitId, dateStr)}
       onContextMenu={e => { e.preventDefault(); onSkip(habitId, dateStr) }}
+      onTouchStart={e => { const t = e.changedTouches[0]; _lpX = t.clientX; _lpY = t.clientY; _lpTimer = setTimeout(() => onSkip(habitId, dateStr), 600) }}
+      onTouchEnd={_lpEnd}
+      onTouchMove={_lpMove}
       style={done ? { '--cell-color': bg } : {}}
     >
       {done && (
@@ -177,11 +197,18 @@ function CtxMenu({ x, y, items, onClose }) {
   useEffect(() => {
     const close = () => onClose()
     document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    document.addEventListener('touchstart', close)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('touchstart', close)
+    }
   }, [onClose])
 
   return (
-    <div className="ctx-menu" style={{ left:x, top:y }} onMouseDown={e => e.stopPropagation()}>
+    <div className="ctx-menu" style={{ left:x, top:y }}
+      onMouseDown={e => e.stopPropagation()}
+      onTouchStart={e => e.stopPropagation()}
+    >
       {items.map((item, i) => (
         <button key={i} className={`ctx-item ${item.danger?'danger':''}`}
           onClick={() => { item.action(); onClose() }}>
@@ -289,6 +316,13 @@ export default function App() {
                     { label:'Add habit', icon:<Plus size={13}/>, action: () => setShowAdd(true) },
                     { label:'Delete category', icon:<Trash2 size={13}/>, danger:true, action: () => deleteCategory(cat.id) }
                   ])}
+                  onTouchStart={_lpStart(e => openCtx(e, [
+                    { label:'Rename', icon:<Pencil size={13}/>, action: () => setRenamingCatId(cat.id) },
+                    { label:'Add habit', icon:<Plus size={13}/>, action: () => setShowAdd(true) },
+                    { label:'Delete category', icon:<Trash2 size={13}/>, danger:true, action: () => deleteCategory(cat.id) }
+                  ]))}
+                  onTouchEnd={_lpEnd}
+                  onTouchMove={_lpMove}
                 >
                   {renamingCatId === cat.id ? (
                     <input
@@ -319,15 +353,16 @@ export default function App() {
                     className="habit-row-sidebar"
                     onContextMenu={e => openCtx(e, [
                       { label:'Rename', icon:<Pencil size={13}/>, action: () => setRenamingHabitId(habit.id) },
-                      {
-                        label:'Change color',
-                        icon:<Palette size={13}/>,
-                        action: () => {
-                          setColorPicker({ catId: cat.id, habitId: habit.id, color: habit.color })
-                        }
-                      },
+                      { label:'Change color', icon:<Palette size={13}/>, action: () => setColorPicker({ catId: cat.id, habitId: habit.id, color: habit.color }) },
                       { label:'Delete habit', icon:<Trash2 size={13}/>, danger:true, action: () => deleteHabit(cat.id, habit.id) }
                     ])}
+                    onTouchStart={_lpStart(e => openCtx(e, [
+                      { label:'Rename', icon:<Pencil size={13}/>, action: () => setRenamingHabitId(habit.id) },
+                      { label:'Change color', icon:<Palette size={13}/>, action: () => setColorPicker({ catId: cat.id, habitId: habit.id, color: habit.color }) },
+                      { label:'Delete habit', icon:<Trash2 size={13}/>, danger:true, action: () => deleteHabit(cat.id, habit.id) }
+                    ]))}
+                    onTouchEnd={_lpEnd}
+                    onTouchMove={_lpMove}
                   >
                     <span
                       className="habit-color-dot"

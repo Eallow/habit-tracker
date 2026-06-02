@@ -1,7 +1,5 @@
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { format, subDays } from 'date-fns'
-
-const WEEKS = 26
 
 function hexToRgb(hex) {
   const r = parseInt(hex.slice(1,3),16)
@@ -19,20 +17,22 @@ function cellColor(habit, days, completions) {
 }
 
 export default function YearView({ categories, completions }) {
+  const [W] = useState(() => window.innerWidth < 640 ? 13 : 26)
+
   const weeks = useMemo(() => {
     const today = new Date()
-    return Array.from({ length: WEEKS }, (_, i) => {
-      const weekEnd = subDays(today, (WEEKS - 1 - i) * 7)
+    return Array.from({ length: W }, (_, i) => {
+      const weekEnd = subDays(today, (W - 1 - i) * 7)
       return Array.from({ length: 7 }, (_, d) =>
         format(subDays(weekEnd, 6 - d), 'yyyy-MM-dd')
       )
     })
-  }, [])
+  }, [W])
 
   const allHabits = useMemo(() => categories.flatMap(c => c.habits), [categories])
   const totalHabits = allHabits.length
   const totalCount = Object.keys(completions).length
-  const windowDays = WEEKS * 7
+  const windowDays = W * 7
   const dailyAvg = totalHabits > 0 ? (totalCount / windowDays).toFixed(1) : '0.0'
   const completionRate = totalHabits > 0
     ? Math.round((totalCount / (totalHabits * windowDays)) * 100)
@@ -52,7 +52,7 @@ export default function YearView({ categories, completions }) {
                   <span style={{ color: habit.color, fontSize: 9 }}>●</span>
                   <span className="year-habit-name">{habit.name}</span>
                 </div>
-                <div className="year-habit-cells">
+                <div className="year-habit-cells" style={{ gridTemplateColumns: `repeat(${W}, 1fr)` }}>
                   {weeks.map((days, wi) => {
                     const bg = cellColor(habit, days, completions)
                     return <div key={wi} className="year-cell" style={bg ? { background: bg } : {}} />
