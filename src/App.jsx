@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { format, addDays, subDays, eachDayOfInterval, isToday, isWeekend, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, Trash2, LayoutGrid, Palette, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, Trash2, LayoutGrid, Palette, Pencil, CalendarDays } from 'lucide-react'
+import YearView from './components/YearView'
 import { useHabits } from './hooks/useHabits'
 import './App.css'
 
@@ -211,6 +212,7 @@ export default function App() {
     todayDate,
   } = useHabits()
 
+  const [view, setView] = useState('grid')
   const [showAdd, setShowAdd] = useState(false)
   const [ctxMenu, setCtxMenu] = useState(null)
   const [colorPicker, setColorPicker] = useState(null) // { catId, habitId, color, ref }
@@ -247,21 +249,26 @@ export default function App() {
           habits
         </div>
         <div className="topbar-sep" />
-        <button className="topbar-btn active">
-          <LayoutGrid size={14} />
-          All Habits
-          <ChevronDown size={12} />
+        <button className={`topbar-btn ${view==='grid'?'active':''}`} onClick={() => setView('grid')}>
+          <LayoutGrid size={14} /> Grid
+        </button>
+        <button className={`topbar-btn ${view==='year'?'active':''}`} onClick={() => setView('year')}>
+          <CalendarDays size={14} /> Year
         </button>
         <div className="topbar-spacer" />
-        <button className="topbar-btn" onClick={() => shiftWindow(-7)}><ChevronLeft size={14} /></button>
-        <button className="topbar-btn" onClick={goToToday}>Today</button>
-        <button className="topbar-btn" onClick={() => shiftWindow(7)}><ChevronRight size={14} /></button>
+        {view === 'grid' && <>
+          <button className="topbar-btn" onClick={() => shiftWindow(-7)}><ChevronLeft size={14} /></button>
+          <button className="topbar-btn" onClick={goToToday}>Today</button>
+          <button className="topbar-btn" onClick={() => shiftWindow(7)}><ChevronRight size={14} /></button>
+        </>}
         <button className="topbar-btn" onClick={() => setShowAdd(true)}>
           <Plus size={14} /> Add
         </button>
       </div>
 
-      <div className="grid-container">
+      {view === 'year' && <YearView categories={categories} completions={completions} />}
+
+      <div className="grid-container" style={{ display: view === 'grid' ? undefined : 'none' }}>
         {/* SIDEBAR */}
         <div className="sidebar">
           <div className="sidebar-date-header">

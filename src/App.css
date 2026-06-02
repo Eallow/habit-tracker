@@ -910,6 +910,140 @@ html, body, #root {
   margin-bottom: 8px;
 }
 
+/* ===== YEAR VIEW ===== */
+.year-view {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 20px 16px 40px;
+  background: var(--bg);
+}
+.year-view::-webkit-scrollbar { display: none; }
+
+.year-heading {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+
+.year-grid-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.year-cat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.year-cat-name {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.year-habit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 20px;
+}
+
+.year-habit-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 150px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.year-habit-name {
+  font-size: 11px;
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.year-habit-cells {
+  display: grid;
+  grid-template-columns: repeat(26, 1fr);
+  gap: 2px;
+  flex: 1;
+}
+
+.year-cell {
+  height: 20px;
+  border-radius: 3px;
+  background: var(--bg3);
+}
+
+.year-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.year-legend-text {
+  font-size: 10px;
+  color: var(--text3);
+}
+
+.year-legend-cell {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  background: var(--bg3);
+}
+
+.year-stats {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.year-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 4px;
+  border-right: 1px solid var(--border);
+  gap: 6px;
+}
+.year-stat:last-child { border-right: none; }
+
+.year-stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.year-stat-label {
+  font-size: 7px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
 /* ===== BOTTOM COUNT ROW ===== */
 .bottom-count-row {
   display: flex;
