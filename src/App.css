@@ -834,9 +834,23 @@ html, body, #root {
   opacity: 1;
 }
 
-.completion-cell:not(.done):hover .cell-check-icon {
+.completion-cell:not(.done):not(.skipped):hover .cell-check-icon {
   opacity: 0.25;
   color: var(--text3);
+}
+
+/* Skipped day: bottom-right triangle colored (opposite of broken) */
+.cell-skip-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    transparent 49%,
+    var(--streak-color) 51%,
+    var(--streak-color) 100%
+  );
+  pointer-events: none;
 }
 
 /* ===== HABIT COLOR DOT ===== */

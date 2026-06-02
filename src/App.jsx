@@ -35,22 +35,15 @@ function streakColor(baseColor, streakLen) {
 }
 
 // ---- Completion Cell ----
-function CompletionCell({ habitId, dateStr, habit, done, isToday, streakLen, prevDone, nextDone, onToggle }) {
+function CompletionCell({ habitId, dateStr, habit, done, skipped, isToday, streakLen, prevDone, onToggle, onSkip }) {
   const bg = done ? streakColor(habit.color, streakLen) : null
-
-  // "broken after" = this day is NOT done but the previous day WAS done
-  // shows diagonal cut on the right side
-  const brokenAfter = !done && prevDone
-
-  // "broken before" = this day IS done but was preceded by a miss (already reset streak)
-  // We show diagonal on left side of FIRST day of a streak if prev was miss
-  // Actually Everyday shows diagonal on the MISSED day after a streak
-  // The cell is split: top-left is colored (remnant of streak), bottom-right is dark
+  const brokenAfter = !done && !skipped && prevDone
 
   return (
     <div
-      className={`completion-cell ${done ? 'done' : ''} ${isToday ? 'today-col' : ''} ${brokenAfter ? 'broken' : ''}`}
+      className={`completion-cell ${done ? 'done' : ''} ${skipped ? 'skipped' : ''} ${isToday ? 'today-col' : ''} ${brokenAfter ? 'broken' : ''}`}
       onClick={() => onToggle(habitId, dateStr)}
+      onContextMenu={e => { e.preventDefault(); onSkip(habitId, dateStr) }}
       style={done ? { '--cell-color': bg } : {}}
     >
       {done && (
@@ -58,6 +51,9 @@ function CompletionCell({ habitId, dateStr, habit, done, isToday, streakLen, pre
       )}
       {brokenAfter && (
         <div className="cell-broken-overlay" style={{ '--streak-color': streakColor(habit.color, 1) }} />
+      )}
+      {skipped && (
+        <div className="cell-skip-overlay" style={{ '--streak-color': streakColor(habit.color, 2) }} />
       )}
       {done && (
         <Check size={11} strokeWidth={3} className="cell-check-icon" />
@@ -205,8 +201,9 @@ export default function App() {
   )
 
   const {
-    categories, completions,
+    categories, completions, skips,
     toggleCompletion, isCompleted,
+    isSkipped, toggleSkip,
     toggleCategory, addCategory, addHabit, deleteHabit, deleteCategory,
     updateHabitColor, renameCategory, renameHabit,
     getStreak, getLongestStreak, getTotalCount,
@@ -424,6 +421,7 @@ export default function App() {
                       {dates.map(date => {
                         const dateStr = format(date, 'yyyy-MM-dd')
                         const done = isCompleted(habit.id, dateStr)
+                        const skipped = isSkipped(habit.id, dateStr)
                         const today = isToday(date)
                         const streakLen = done ? getStreakAt(habit.id, dateStr) : 0
                         const prevDone = wasPrevDayDone(habit.id, dateStr)
@@ -435,10 +433,12 @@ export default function App() {
                             dateStr={dateStr}
                             habit={habit}
                             done={done}
+                            skipped={skipped}
                             isToday={today}
                             streakLen={streakLen}
                             prevDone={prevDone}
                             onToggle={toggleCompletion}
+                            onSkip={toggleSkip}
                           />
                         )
                       })}

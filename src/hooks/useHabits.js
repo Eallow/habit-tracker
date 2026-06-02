@@ -40,7 +40,8 @@ const DEFAULT_DATA = {
       ]
     },
   ],
-  completions: {}
+  completions: {},
+  skips: {}
 }
 
 function load() {
@@ -62,35 +63,70 @@ function genId() {
 export function useHabits() {
   const [categories, setCategories] = useState([])
   const [completions, setCompletions] = useState({})
+  const [skips, setSkips] = useState({})
 
   useEffect(() => {
     const stored = load()
     if (stored) {
       setCategories(stored.categories || DEFAULT_DATA.categories)
       setCompletions(stored.completions || {})
+      setSkips(stored.skips || {})
     } else {
       setCategories(DEFAULT_DATA.categories)
       setCompletions({})
+      setSkips({})
     }
   }, [])
 
   useEffect(() => {
-    if (categories.length > 0) save({ categories, completions })
-  }, [categories, completions])
+    if (categories.length > 0) save({ categories, completions, skips })
+  }, [categories, completions, skips])
 
   const toggleCompletion = useCallback((habitId, date) => {
     const key = `${habitId}-${date}`
+    const isCurrentlyDone = !!completions[key]
     setCompletions(prev => {
       const next = { ...prev }
-      if (next[key]) delete next[key]
+      if (isCurrentlyDone) delete next[key]
       else next[key] = true
       return next
     })
-  }, [])
+    if (!isCurrentlyDone) {
+      setSkips(prev => {
+        if (!prev[key]) return prev
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    }
+  }, [completions])
 
   const isCompleted = useCallback((habitId, date) => {
     return !!completions[`${habitId}-${date}`]
   }, [completions])
+
+  const isSkipped = useCallback((habitId, date) => {
+    return !!skips[`${habitId}-${date}`]
+  }, [skips])
+
+  const toggleSkip = useCallback((habitId, date) => {
+    const key = `${habitId}-${date}`
+    const isCurrentlySkipped = !!skips[key]
+    setSkips(prev => {
+      const next = { ...prev }
+      if (isCurrentlySkipped) delete next[key]
+      else next[key] = true
+      return next
+    })
+    if (!isCurrentlySkipped) {
+      setCompletions(prev => {
+        if (!prev[key]) return prev
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    }
+  }, [skips])
 
   const toggleCategory = useCallback((catId) => {
     setCategories(prev => prev.map(c => c.id === catId ? { ...c, collapsed: !c.collapsed } : c))
@@ -118,17 +154,6 @@ export function useHabits() {
     ))
   }, [])
 
-  const deleteHabit = useCallback((catId, habitId) => {
-    setCategories(prev => prev.map(c =>
-      c.id === catId ? { ...c, habits: c.habits.filter(h => h.id !== habitId) } : c
-    ))
-    setCompletions(prev => {
-      const next = { ...prev }
-      Object.keys(next).forEach(k => { if (k.startsWith(`${habitId}-`)) delete next[k] })
-      return next
-    })
-  }, [])
-
   const renameCategory = useCallback((catId, name) => {
     setCategories(prev => prev.map(c =>
       c.id === catId ? { ...c, name: name.toUpperCase() } : c
@@ -143,6 +168,22 @@ export function useHabits() {
     ))
   }, [])
 
+  const deleteHabit = useCallback((catId, habitId) => {
+    setCategories(prev => prev.map(c =>
+      c.id === catId ? { ...c, habits: c.habits.filter(h => h.id !== habitId) } : c
+    ))
+    setCompletions(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach(k => { if (k.startsWith(`${habitId}-`)) delete next[k] })
+      return next
+    })
+    setSkips(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach(k => { if (k.startsWith(`${habitId}-`)) delete next[k] })
+      return next
+    })
+  }, [])
+
   const deleteCategory = useCallback((catId) => {
     setCategories(prev => {
       const cat = prev.find(c => c.id === catId)
@@ -154,62 +195,104 @@ export function useHabits() {
           })
           return next
         })
+        setSkips(prev2 => {
+          const next = { ...prev2 }
+          cat.habits.forEach(h => {
+            Object.keys(next).forEach(k => { if (k.startsWith(`${h.id}-`)) delete next[k] })
+          })
+          return next
+        })
       }
       return prev.filter(c => c.id !== catId)
     })
   }, [])
 
-  // Returns streak length AT a specific date (consecutive days ending on that date)
+  // Streak at a date: counts done days, skips are transparent (max 2 consecutive skips)
   const getStreakAt = useCallback((habitId, dateStr) => {
     let streak = 0
+    let consecutiveSkips = 0
     let d = new Date(dateStr + 'T12:00:00')
     while (true) {
-      const key = `${habitId}-${format(d, 'yyyy-MM-dd')}`
-      if (completions[key]) { streak++; d = subDays(d, 1) } else break
+      const dStr = format(d, 'yyyy-MM-dd')
+      if (completions[`${habitId}-${dStr}`]) {
+        streak++
+        consecutiveSkips = 0
+        d = subDays(d, 1)
+      } else if (skips[`${habitId}-${dStr}`]) {
+        consecutiveSkips++
+        if (consecutiveSkips > 2) break
+        d = subDays(d, 1)
+      } else {
+        break
+      }
     }
     return streak
-  }, [completions])
+  }, [completions, skips])
 
   const getStreak = useCallback((habitId) => {
     let streak = 0
+    let consecutiveSkips = 0
     let d = new Date()
-    const todayKey = `${habitId}-${format(d, 'yyyy-MM-dd')}`
-    if (!completions[todayKey]) d = subDays(d, 1)
+    const todayStr = format(d, 'yyyy-MM-dd')
+    if (!completions[`${habitId}-${todayStr}`] && !skips[`${habitId}-${todayStr}`]) {
+      d = subDays(d, 1)
+    }
     while (true) {
-      const key = `${habitId}-${format(d, 'yyyy-MM-dd')}`
-      if (completions[key]) { streak++; d = subDays(d, 1) } else break
+      const dStr = format(d, 'yyyy-MM-dd')
+      if (completions[`${habitId}-${dStr}`]) {
+        streak++
+        consecutiveSkips = 0
+        d = subDays(d, 1)
+      } else if (skips[`${habitId}-${dStr}`]) {
+        consecutiveSkips++
+        if (consecutiveSkips > 2) break
+        d = subDays(d, 1)
+      } else {
+        break
+      }
     }
     return streak
-  }, [completions])
+  }, [completions, skips])
 
   const getLongestStreak = useCallback((habitId) => {
-    let longest = 0, current = 0
+    let longest = 0
+    let current = 0
+    let consecutiveSkips = 0
     for (let i = 364; i >= 0; i--) {
-      const key = `${habitId}-${format(subDays(new Date(), i), 'yyyy-MM-dd')}`
-      if (completions[key]) { current++; longest = Math.max(longest, current) } else current = 0
+      const dStr = format(subDays(new Date(), i), 'yyyy-MM-dd')
+      if (completions[`${habitId}-${dStr}`]) {
+        current++
+        consecutiveSkips = 0
+        longest = Math.max(longest, current)
+      } else if (skips[`${habitId}-${dStr}`]) {
+        consecutiveSkips++
+        if (consecutiveSkips > 2) { current = 0; consecutiveSkips = 0 }
+      } else {
+        current = 0
+        consecutiveSkips = 0
+      }
     }
     return longest
-  }, [completions])
+  }, [completions, skips])
 
   const getTotalCount = useCallback((habitId) => {
     return Object.keys(completions).filter(k => k.startsWith(`${habitId}-`)).length
   }, [completions])
 
-  // Was the previous day done? (for broken streak visual)
   const wasPrevDayDone = useCallback((habitId, dateStr) => {
     const prev = format(subDays(new Date(dateStr + 'T12:00:00'), 1), 'yyyy-MM-dd')
-    return !!completions[`${habitId}-${prev}`]
-  }, [completions])
+    return !!completions[`${habitId}-${prev}`] || !!skips[`${habitId}-${prev}`]
+  }, [completions, skips])
 
-  // Is the next day done?
   const isNextDayDone = useCallback((habitId, dateStr) => {
     const next = format(new Date(new Date(dateStr + 'T12:00:00').getTime() + 86400000), 'yyyy-MM-dd')
     return !!completions[`${habitId}-${next}`]
   }, [completions])
 
   return {
-    categories, completions,
+    categories, completions, skips,
     toggleCompletion, isCompleted,
+    isSkipped, toggleSkip,
     toggleCategory, addCategory, addHabit, deleteHabit, deleteCategory,
     updateHabitColor, renameCategory, renameHabit,
     getStreak, getLongestStreak, getTotalCount,
