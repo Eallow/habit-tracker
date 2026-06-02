@@ -26,7 +26,7 @@ function streakColor(baseColor, streakLen) {
   if (streakLen <= 0) return null
   const [r, g, b] = hexToRgb(baseColor)
   // opacity ramp: 0.25 → 1.0 over 7 steps
-  const minOpacity = 0.22
+  const minOpacity = 0.42
   const maxOpacity = 1.0
   const steps = 7
   const t = Math.min((streakLen - 1) / (steps - 1), 1)
@@ -208,7 +208,7 @@ export default function App() {
     categories, completions,
     toggleCompletion, isCompleted,
     toggleCategory, addCategory, addHabit, deleteHabit, deleteCategory,
-    updateHabitColor, renameCategory,
+    updateHabitColor, renameCategory, renameHabit,
     getStreak, getLongestStreak, getTotalCount,
     getStreakAt, wasPrevDayDone, isNextDayDone,
     todayDate,
@@ -218,6 +218,7 @@ export default function App() {
   const [ctxMenu, setCtxMenu] = useState(null)
   const [colorPicker, setColorPicker] = useState(null) // { catId, habitId, color, ref }
   const [renamingCatId, setRenamingCatId] = useState(null)
+  const [renamingHabitId, setRenamingHabitId] = useState(null)
   const colorPickerRef = useRef(null)
 
   const sidebarRef = useRef(null)
@@ -313,6 +314,7 @@ export default function App() {
                     key={habit.id}
                     className="habit-row-sidebar"
                     onContextMenu={e => openCtx(e, [
+                      { label:'Rename', icon:<Pencil size={13}/>, action: () => setRenamingHabitId(habit.id) },
                       {
                         label:'Change color',
                         icon:<Palette size={13}/>,
@@ -323,7 +325,6 @@ export default function App() {
                       { label:'Delete habit', icon:<Trash2 size={13}/>, danger:true, action: () => deleteHabit(cat.id, habit.id) }
                     ])}
                   >
-                    {/* Color dot */}
                     <span
                       className="habit-color-dot"
                       style={{ background: habit.color }}
@@ -333,7 +334,24 @@ export default function App() {
                       }}
                     />
                     <span className="habit-row-emoji">{habit.emoji}</span>
-                    <span className="habit-row-name">{habit.name}</span>
+                    {renamingHabitId === habit.id ? (
+                      <input
+                        className="habit-rename-input"
+                        defaultValue={habit.name}
+                        autoFocus
+                        onClick={e => e.stopPropagation()}
+                        onBlur={e => { renameHabit(cat.id, habit.id, e.target.value); setRenamingHabitId(null) }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') { renameHabit(cat.id, habit.id, e.target.value); setRenamingHabitId(null) }
+                          if (e.key === 'Escape') setRenamingHabitId(null)
+                        }}
+                      />
+                    ) : (
+                      <span
+                        className="habit-row-name"
+                        onDoubleClick={e => { e.stopPropagation(); setRenamingHabitId(habit.id) }}
+                      >{habit.name}</span>
+                    )}
                     <button className="habit-delete-btn" onClick={e => { e.stopPropagation(); deleteHabit(cat.id, habit.id) }}>
                       <Trash2 size={11} />
                     </button>
