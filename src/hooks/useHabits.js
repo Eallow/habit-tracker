@@ -129,6 +129,12 @@ export function useHabits() {
     })
   }, [])
 
+  const renameCategory = useCallback((catId, name) => {
+    setCategories(prev => prev.map(c =>
+      c.id === catId ? { ...c, name: name.toUpperCase() } : c
+    ))
+  }, [])
+
   const deleteCategory = useCallback((catId) => {
     setCategories(prev => {
       const cat = prev.find(c => c.id === catId)
@@ -197,7 +203,7 @@ export function useHabits() {
     categories, completions,
     toggleCompletion, isCompleted,
     toggleCategory, addCategory, addHabit, deleteHabit, deleteCategory,
-    updateHabitColor,
+    updateHabitColor, renameCategory,
     getStreak, getLongestStreak, getTotalCount,
     getStreakAt, wasPrevDayDone, isNextDayDone,
     todayDate: format(new Date(), 'yyyy-MM-dd'),

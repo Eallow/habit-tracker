@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { format, addDays, subDays, eachDayOfInterval, isToday, isWeekend, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, Trash2, LayoutGrid, Palette } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, Check, Trash2, LayoutGrid, Palette, Pencil } from 'lucide-react'
 import { useHabits } from './hooks/useHabits'
 import './App.css'
 
@@ -208,7 +208,7 @@ export default function App() {
     categories, completions,
     toggleCompletion, isCompleted,
     toggleCategory, addCategory, addHabit, deleteHabit, deleteCategory,
-    updateHabitColor,
+    updateHabitColor, renameCategory,
     getStreak, getLongestStreak, getTotalCount,
     getStreakAt, wasPrevDayDone, isNextDayDone,
     todayDate,
@@ -217,6 +217,7 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false)
   const [ctxMenu, setCtxMenu] = useState(null)
   const [colorPicker, setColorPicker] = useState(null) // { catId, habitId, color, ref }
+  const [renamingCatId, setRenamingCatId] = useState(null)
   const colorPickerRef = useRef(null)
 
   const sidebarRef = useRef(null)
@@ -254,7 +255,9 @@ export default function App() {
           <ChevronDown size={12} />
         </button>
         <div className="topbar-spacer" />
+        <button className="topbar-btn" onClick={() => shiftWindow(-7)}><ChevronLeft size={14} /></button>
         <button className="topbar-btn" onClick={goToToday}>Today</button>
+        <button className="topbar-btn" onClick={() => shiftWindow(7)}><ChevronRight size={14} /></button>
         <button className="topbar-btn" onClick={() => setShowAdd(true)}>
           <Plus size={14} /> Add
         </button>
@@ -275,13 +278,31 @@ export default function App() {
               <div key={cat.id}>
                 <div
                   className="cat-row-sidebar"
-                  onClick={() => toggleCategory(cat.id)}
+                  onClick={() => renamingCatId !== cat.id && toggleCategory(cat.id)}
                   onContextMenu={e => openCtx(e, [
+                    { label:'Rename', icon:<Pencil size={13}/>, action: () => setRenamingCatId(cat.id) },
                     { label:'Add habit', icon:<Plus size={13}/>, action: () => setShowAdd(true) },
                     { label:'Delete category', icon:<Trash2 size={13}/>, danger:true, action: () => deleteCategory(cat.id) }
                   ])}
                 >
-                  <span className="cat-name">{cat.name}</span>
+                  {renamingCatId === cat.id ? (
+                    <input
+                      className="cat-rename-input"
+                      defaultValue={cat.name}
+                      autoFocus
+                      onClick={e => e.stopPropagation()}
+                      onBlur={e => { renameCategory(cat.id, e.target.value); setRenamingCatId(null) }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { renameCategory(cat.id, e.target.value); setRenamingCatId(null) }
+                        if (e.key === 'Escape') setRenamingCatId(null)
+                      }}
+                    />
+                  ) : (
+                    <span
+                      className="cat-name"
+                      onDoubleClick={e => { e.stopPropagation(); setRenamingCatId(cat.id) }}
+                    >{cat.name}</span>
+                  )}
                   <span className={`cat-collapse-btn ${cat.collapsed?'collapsed':''}`}>
                     <ChevronDown size={12} />
                   </span>
@@ -332,10 +353,6 @@ export default function App() {
           <div className="grid-inner">
             {/* DATE HEADER */}
             <div className="date-header-row">
-              <button className="date-nav-btn" onClick={() => shiftWindow(-7)}>
-                <ChevronLeft size={16} />
-              </button>
-
               {dates.map(date => {
                 const dateStr = format(date, 'yyyy-MM-dd')
                 const today = isToday(date)
@@ -348,10 +365,6 @@ export default function App() {
                   </div>
                 )
               })}
-
-              <button className="date-nav-btn" onClick={() => shiftWindow(7)}>
-                <ChevronRight size={16} />
-              </button>
 
               <div className="stats-header">
                 {['current streak','longest streak','total count'].map(l => (
